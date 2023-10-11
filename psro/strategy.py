@@ -1,8 +1,7 @@
 """Strategy objects defining containers of policies and a distribution over them."""
-from typing import Mapping, Sequence, Tuple, Union
+from typing import List, Mapping, Sequence, Tuple, Union
 
 import numpy as np
-
 from marl import individuals, types, worlds
 
 Mixture = Sequence[float]
@@ -32,7 +31,7 @@ class Strategy(individuals.Bot):
 
   def __init__(
       self,
-      policies: Sequence[individuals.Individual],
+      policies: List[individuals.Individual],
       mixture: Sequence[float],
       seed: int | None = None,
   ):
@@ -57,6 +56,11 @@ class Strategy(individuals.Bot):
     self._policy = self._policies[policy_id]
     return self._policy.episode_reset(timestep=timestep)
 
+  def add_policy(self, policy: individuals.Individual):
+    """Adds a policy with zero support to the strategy."""
+    self._policies.append(policy)
+    self.mixture = np.append(self.mixture, 0.0)
+
   @property
   def mixture(self) -> Mixture:
     """Mixture getter."""
@@ -67,4 +71,11 @@ class Strategy(individuals.Bot):
     """Mixture setter."""
     if not is_probability_distribution(new_mixture):
       raise ValueError("Mixture must be a valid probability distribution.")
-    self._mixture = new_mixture
+    self._mixture = np.asarray(new_mixture)
+
+  def __len__(self):
+    """Size of strategy set."""
+    return len(self.mixture)
+
+
+JointStrategy = Mapping[types.PlayerID, Strategy]

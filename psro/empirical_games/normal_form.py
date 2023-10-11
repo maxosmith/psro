@@ -1,6 +1,7 @@
 """Empirical normal-form game."""
 import dataclasses
 import itertools
+import pathlib
 import shelve
 from typing import Callable, Sequence
 
@@ -22,11 +23,11 @@ class NormalForm:
   """
 
   num_players: int
-  path: str | None = None
+  path: str | pathlib.Path | None = None
 
   def __post_init__(self):
     """Initialize payoffs and policy counters."""
-    self.payoffs = shelve.open(self.path) if self.path else {}
+    self.payoffs = shelve.open(str(self.path)) if self.path else {}
     self.num_policies = {}
 
   def __del__(self):
