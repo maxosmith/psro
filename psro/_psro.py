@@ -88,8 +88,8 @@ class PSRO:
       os.mkdir(epoch_dir)
 
       self.simulate_profiles()
-      self.solve_empirical_game(epoch_dir)
-      self.expand_empirical_game(epoch_dir)
+      solution = self.solve_empirical_game(epoch_dir)
+      self.expand_empirical_game(epoch_dir, solution)
 
     logging.info("Finalizing empirical game.")
     self.simulate_profiles()
@@ -133,7 +133,7 @@ class PSRO:
         self._empirical_game.add_payoffs(dict(enumerate(profile)), payoffs)
     logging.info("Simulation complete.")
 
-  def solve_empirical_game(self, epoch_dir: pathlib.Path) -> strategy.Profile:
+  def solve_empirical_game(self, epoch_dir: pathlib.Path) -> strategy.MixedProfile:
     """Solve the current empirical game."""
     logging.info("Solving the empirical game.")
     matrix = self._empirical_game.game_matrix()
@@ -150,7 +150,7 @@ class PSRO:
       self._strategies[player_id].mixture = mixture
     return solution
 
-  def expand_empirical_game(self, epoch_dir: pathlib.Path):
+  def expand_empirical_game(self, epoch_dir: pathlib.Path, solution: strategy.MixedProfile):
     """Expands the game by havign each player compute one new response policy.
 
     Args:
@@ -158,8 +158,9 @@ class PSRO:
     """
     job_template = core.ResponseOracleJob(
         learner_id=None,
-        game_ctor=self._game_ctor,
         players=self._strategies,
+        game_ctor=self._game_ctor,
+        solution=solution,
         epoch_dir=epoch_dir,
     )
     jobs = [job_template._replace(learner_id=i) for i in range(self.num_players)]
@@ -180,7 +181,7 @@ class PSRO:
     """Getter for the players's strategies."""
     return self._strategies
 
-  def _fix_solution_precision(self, solution: strategy.Profile) -> strategy.Profile:
+  def _fix_solution_precision(self, solution: strategy.MixedProfile) -> strategy.MixedProfile:
     """Set a solution to a specificed precision."""
     for player_id, mixture in solution.items():
       mixture = np.round(mixture, self._solution_precision)

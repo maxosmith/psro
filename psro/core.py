@@ -1,6 +1,6 @@
 """Core PSRO definitions."""
 import pathlib
-from typing import Callable, Mapping, NamedTuple
+from typing import Any, Callable, Mapping, NamedTuple
 
 from marl import individuals, types, worlds
 
@@ -20,7 +20,9 @@ class ResponseOracleJob(NamedTuple):
   learner_id: LearnerID
   players: strategy.JointStrategy
   game_ctor: Callable[[], worlds.Game]
+  solution: strategy.MixedProfile
   epoch_dir: str | pathlib.Path
+  extras: Any | None = None
 
 
 ResponseOracle = Callable[[ResponseOracleJob], individuals.Bot]
@@ -33,6 +35,7 @@ class SimulationJob(NamedTuple):
   players: strategy.JointStrategy
   profile: strategy.PureProfile
   num_episodes: int
+  extras: Any | None = None
 
 
 ProfileSimulator = Callable[[SimulationJob], tuple[strategy.Profile, types.Tree]]

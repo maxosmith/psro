@@ -66,6 +66,11 @@ class Strategy(individuals.Bot):
     """Mixture getter."""
     return self._mixture
 
+  @property
+  def policies(self) -> List[individuals.Individual]:
+    """Policies getter."""
+    return self._policies
+
   @mixture.setter
   def mixture(self, new_mixture: Mixture):
     """Mixture setter."""
