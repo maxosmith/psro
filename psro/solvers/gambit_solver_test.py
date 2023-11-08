@@ -11,6 +11,7 @@ class GambitSolverTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]]]),),
+      (np.array([[[1, 0], [0, 1]], [[0, 1], [1, 0]]], dtype=float),),
       (np.array([[[[1, 0, 2], [0, 1, 1]], [[0, 1, 0], [1, 0, 3]]]]),),
   )
   def test_payoff_matrix_to_gambit_game(self, payoffs: np.ndarray) -> None:

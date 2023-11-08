@@ -31,6 +31,14 @@ class NashSolver(Enum):
   IPA = nash.ipa_solve
 
 
+def _to_decimal(x) -> pygambit.Decimal:
+  """Convert a number into pygambit numerics."""
+  return pygambit.Decimal(float(x))
+
+
+_array_to_decimal = np.vectorize(_to_decimal)
+
+
 def payoff_matrix_to_gambit_game(payoffs: np.ndarray) -> pygambit.Game:
   """Convert a payoff matrix into a pygambit Game instance.
 
@@ -45,7 +53,7 @@ def payoff_matrix_to_gambit_game(payoffs: np.ndarray) -> pygambit.Game:
   Raises:
     ValueError: If the payoff matrix has an unexpected shape.
   """
-  payoffs = payoffs.astype(pygambit.Rational)
+  payoffs = _array_to_decimal(payoffs)
   game = pygambit.Game.from_arrays(*(payoffs[..., i] for i in range(payoffs.shape[-1])))
   return game
 
