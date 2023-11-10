@@ -1,9 +1,10 @@
 """Test for `openspiel_br`."""
+import numpy as np
 import pyspiel
 from absl.testing import absltest, parameterized
 from marl import bots
 
-from psro import strategy
+from psro import core, strategy
 from psro.response_oracles.openspiel_br import best_response
 
 
@@ -24,8 +25,16 @@ class BestResponseTest(parameterized.TestCase):
         0: strategy.Strategy(policies=[bots.RandomActionBot(num_actions)], mixture=[1.0]),
         1: strategy.Strategy(policies=[bots.RandomActionBot(num_actions)], mixture=[1.0]),
     }
-    br_oracle = best_response.BestResponse(game, 0)
-    br_oracle(players=test_policy)
+    br_oracle = best_response.BestResponse(game)
+    br_oracle(
+        core.ResponseOracleJob(
+            learner_id=0,
+            players=test_policy,
+            game_ctor=lambda: pyspiel.load_game(game_name),
+            solution={0: np.array([1.0]), 1: np.array([1.0])},
+            epoch_dir=None,
+        )
+    )
 
   def test_best_response_behavior(self):
     game = pyspiel.load_game("kuhn_poker")
@@ -33,8 +42,16 @@ class BestResponseTest(parameterized.TestCase):
         0: strategy.Strategy(policies=[bots.RandomActionBot(2)], mixture=[1.0]),
         1: strategy.Strategy(policies=[bots.RandomActionBot(2)], mixture=[1.0]),
     }
-    br_oracle = best_response.BestResponse(game, 0)
-    br = br_oracle(players=test_policy)
+    br_oracle = best_response.BestResponse(game)
+    br = br_oracle(
+        core.ResponseOracleJob(
+            learner_id=0,
+            players=test_policy,
+            game_ctor=lambda: pyspiel.load_game("kuhn_poker"),
+            solution={0: np.array([1.0]), 1: np.array([1.0])},
+            epoch_dir=None,
+        )
+    )
     expected_policy = {
         "0": 1,  # Bet in case opponent folds when winning
         "1": 1,  # Bet in case opponent folds when winning

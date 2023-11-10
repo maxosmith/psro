@@ -42,7 +42,7 @@ def _state_sequences_iter(game):
 
 
 def _history_to_timesteps(pygame, history) -> list[worlds.TimeStep]:
-  proxy = openspiel_proxy.OpenSpielProxy(pygame)
+  proxy = openspiel_proxy.OpenSpielProxy(pygame, include_full_state=True)
   timesteps = []
   for state in history:
     state = pygame.deserialize_state(state)

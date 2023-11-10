@@ -6,9 +6,9 @@ import tempfile
 import cloudpickle
 import numpy as np
 from absl.testing import absltest, parameterized
+
 from marl import bots
 from marl.utils import tree_utils
-
 from psro import _psro, strategy, test_utils
 
 _RPS = np.array([
@@ -37,12 +37,20 @@ class PSROTest(parameterized.TestCase):
               0: strategy.Strategy([bots.ConstantActionBot(0)], [1.0]),
               1: strategy.Strategy([bots.ConstantActionBot(1)], [1.0]),
           },
-          response_oracle=test_utils.StubResponseOracle(
-              outputs=[
-                  bots.ConstantActionBot(2),
-                  bots.ConstantActionBot(3),
-              ],
-          ),
+          response_oracles={
+              0: test_utils.StubResponseOracle(
+                  outputs=[
+                      bots.ConstantActionBot(2),
+                      bots.ConstantActionBot(3),
+                  ],
+              ),
+              1: test_utils.StubResponseOracle(
+                  outputs=[
+                      bots.ConstantActionBot(2),
+                      bots.ConstantActionBot(3),
+                  ],
+              ),
+          },
           profile_simulator=test_utils.StubProfileSimulator(_RPS),
           game_solver=test_utils.MockGameSolver(
               expected_games=expected_games,
