@@ -10,8 +10,8 @@ from typing import Sequence
 import cloudpickle
 import numpy as np
 from absl import logging
-
 from marl import types
+
 from psro import core, empirical_games, strategy
 
 
@@ -142,7 +142,7 @@ class PSRO:
     matrix = self._empirical_game.game_matrix()
     solutions = self._game_solver(matrix)
     if isinstance(solutions, Sequence):
-      logging.info(f"Found {len(solutions)} solutions, taking first solution.")
+      logging.info("Found %d solutions, taking first solution.", len(solutions))
       solution = solutions[0]
     else:
       solution = solutions
@@ -185,7 +185,7 @@ class PSRO:
         except Exception as e:
           print(f"Response oracle died with exception: {e}")
           traceback.print_exc()
-          raise RuntimeError("Error encountered when running a response oracle.")
+          raise RuntimeError("Error encountered when running a response oracle.") from e
 
   @property
   def empirical_game(self) -> empirical_games.NormalForm:

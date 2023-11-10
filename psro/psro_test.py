@@ -6,9 +6,9 @@ import tempfile
 import cloudpickle
 import numpy as np
 from absl.testing import absltest, parameterized
-
 from marl import bots
 from marl.utils import tree_utils
+
 from psro import _psro, strategy, test_utils
 
 _RPS = np.array([
