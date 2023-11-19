@@ -6,13 +6,11 @@ References:
 import dataclasses
 from typing import Tuple
 
-import numpy as np
 import pyspiel
 from marl import individuals, types, worlds
 from open_spiel.python import policy as openspiel_policy
 from open_spiel.python.algorithms import best_response as openspiel_br
 from open_spiel.python.algorithms import policy_utils as openspiel_policy_utils
-from open_spiel.python.algorithms.psro_v2 import utils as openspiel_utils
 
 from psro import core, strategy
 from psro.response_oracles.openspiel_br import utils
@@ -26,10 +24,12 @@ class OpenSpielBestResponseProxy(individuals.Bot):
   br: openspiel_br.CPPBestResponsePolicy | openspiel_br.BestResponsePolicy
 
   def step(self, state: types.State, timestep: worlds.TimeStep) -> Tuple[types.State, types.Action]:
+    """Action selection."""
     _, game_state = pyspiel.deserialize_game_and_state(timestep.observation["serialized_state"])
     return state, self.br.best_response_action(game_state.information_state_string(self.player_id))
 
   def episode_reset(self, timestep: worlds.TimeStep):
+    """Reset episodic state."""
     del timestep
     return ()
 
@@ -109,30 +109,7 @@ class BestResponse:
     learner_id = job.learner_id
     self._validate_joint_strategy(players)
     self._maybe_initialize_resources()
-
-    # Convert the policies into OpenSpiel compatible policies.
-    current_best = []
-    probabilities_of_playing_policies = []
-    for pid in range(len(players)):
-      if learner_id == pid:
-        # For the player we're going to compute the BR for we can skip converting their
-        # strategy as its an expensive calculation.
-        current_best.append([openspiel_policy.TabularPolicy(self._game).__copy__()])
-        probabilities_of_playing_policies.append([1.0])
-      else:
-        current_best.append(
-            [
-                utils.bot_to_openspiel_policy(self._game, players[pid].policies[policy_id], pid)
-                for policy_id in range(len(players[pid].policies))
-            ]
-        )
-        probabilities_of_playing_policies.append(list(players[pid].mixture))
-
-    aggr_policy = openspiel_utils.aggregate_policies(
-        self._game,
-        current_best,
-        probabilities_of_playing_policies,
-    )
+    aggr_policy = utils.aggregate_joint_strategy(self._game, players, learner_id)
 
     # This takes as input an aggregate policy, and computes a best response
     # for current_player at the applicable information states by recursing

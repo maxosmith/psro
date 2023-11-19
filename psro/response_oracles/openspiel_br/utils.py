@@ -1,19 +1,26 @@
 """Utility functions for computing best responses through OpenSpiel."""
+import copy
 import itertools
 
 import numpy as np
 import pyspiel
-from marl import individuals, worlds
+from marl import individuals, types, worlds
 from marl.games import openspiel_proxy
 from open_spiel.python import policy
-from open_spiel.python.algorithms import get_all_states
+from open_spiel.python.algorithms import get_all_states, policy_aggregator
+from open_spiel.python.algorithms.psro_v2 import utils as openspiel_utils
 from scipy.special import softmax
+
+from psro import strategy
 
 _RPS_STRING = "repeated_game(stage_game=matrix_rps(),num_repetitions=2)"
 
 
 def _state_sequences_iter(game):
+  """Iterate over state sequences in the game."""
+
   def recurse(state, state_sequence):
+    """Generator for state sequences."""
     yield (state_sequence, state)
     if state.is_terminal():
       return
@@ -41,7 +48,8 @@ def _state_sequences_iter(game):
   yield from recurse(initial_state, [initial_state_serialized])
 
 
-def _history_to_timesteps(pygame, history) -> list[worlds.TimeStep]:
+def _history_to_timesteps(pygame, history, final_state) -> list[worlds.TimeStep]:
+  """Convert an OpenSpiel history to a sequence of timesteps."""
   proxy = openspiel_proxy.OpenSpielProxy(pygame, include_full_state=True)
   timesteps = []
   for state in history:
@@ -50,6 +58,8 @@ def _history_to_timesteps(pygame, history) -> list[worlds.TimeStep]:
       continue
     proxy._game._state = state  # pylint: disable=protected-access
     timesteps.append(proxy._convert_openspiel_timestep(proxy._game.get_time_step()))  # pylint: disable=protected-access
+  proxy._game._state = final_state  # pylint: disable=protected-access
+  timesteps.append(proxy._convert_openspiel_timestep(proxy._game.get_time_step()))  # pylint: disable=protected-access
   return timesteps
 
 
@@ -86,7 +96,7 @@ def compute_states_and_info_states_if_none(game, all_states=None, state_to_infor
 
 def bot_to_openspiel_policy(pygame: pyspiel.Game, bot: individuals.Bot, player_id: int = 0) -> policy.TabularPolicy:
   """."""
-  tab_policy = policy.TabularPolicy(pygame)
+  tab_policy = policy.TabularPolicy(pygame, players=[player_id])
 
   # Collect the information states that occurred leading up to each game-state.
   serial_to_state = {state.serialize(): state for state in tab_policy.states}
@@ -101,7 +111,7 @@ def bot_to_openspiel_policy(pygame: pyspiel.Game, bot: individuals.Bot, player_i
   for state_i, state in enumerate(tab_policy.states):
     # Get the sequence of timesteps leading up to the game-state.
     history = serial_to_history[state.serialize()]
-    timesteps = _history_to_timesteps(pygame, history)
+    timesteps = _history_to_timesteps(pygame, history, state)
 
     reset = False
     agent_state = None
@@ -123,3 +133,38 @@ def bot_to_openspiel_policy(pygame: pyspiel.Game, bot: individuals.Bot, player_i
         tab_policy.action_probability_array[state_i][action] = 1
 
   return tab_policy
+
+
+def aggregate_joint_strategy(
+    pygame: pyspiel.Game, players: strategy.JointStrategy, learner_id: None | types.PlayerID = None
+) -> policy_aggregator.PolicyFunction:
+  """Aggregate a strategy into a single OpenSpiel-compatible policy.
+
+  Args:
+    pygame:
+    players:
+    learner_id: ID for a policy that will be learned. This is specified to avoid the unnecessary conversion
+      of this player's strategy into OpenSpiel policies.
+  """
+  current_best = []
+  probabilities_of_playing_policies = []
+  for pid in range(len(players)):
+    if (learner_id is not None) and (learner_id == pid):
+      # For the player we're going to compute the BR for we can skip converting their
+      # strategy as its an expensive calculation.
+      current_best.append([copy.copy(policy.TabularPolicy(pygame))])
+      probabilities_of_playing_policies.append([1.0])
+    else:
+      current_best.append(
+          [
+              bot_to_openspiel_policy(pygame, players[pid].policies[policy_id], pid)
+              for policy_id in range(len(players[pid].policies))
+          ]
+      )
+      probabilities_of_playing_policies.append(list(players[pid].mixture))
+
+  return openspiel_utils.aggregate_policies(
+      pygame,
+      current_best,
+      probabilities_of_playing_policies,
+  )
