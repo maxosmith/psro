@@ -15,6 +15,13 @@ class ProjectedReplicatorDynamics:
   """Projected Replicator Dynamics (PRD).
 
   Args:
+    num_iterations: Number of algorithmic steps to take before returning an
+    answer.
+    dt: Update amplitude term.
+    gamma: Minimum exploratory probability term.
+    average_over_last_n_strategies: Running average window size for average
+      policy computation. If None, use the whole trajectory.
+    use_approx: use the approximate simplex projection.
   """
 
   num_iterations: int = 10_000
@@ -24,7 +31,14 @@ class ProjectedReplicatorDynamics:
   use_approx: bool = False
 
   def __call__(self, payoffs: np.ndarray, **kwargs) -> Sequence[strategy.Profile]:
-    """."""
+    """Compute PRD for the given payoff matrix.
+
+    Args:
+      payoffs: Payoff matrix [P1, P2, ...., PN, NumPlayers].
+
+    Returns:
+      Computed solution.
+    """
     payoff_tensors = sox.array_utils.unstack(payoffs, axis=-1)
 
     number_players = len(payoff_tensors)
