@@ -19,7 +19,9 @@ class UniformTest(parameterized.TestCase):
   )
   def test_uniform(self, payoffs: np.ndarray, expected: strategy.Profile):
     """Tests basic API."""
-    tree_utils.assert_almost_equals(expected, uniform.Uniform()(payoffs))
+    actual = uniform.Uniform()(payoffs)
+    self.assertLen(actual, 1)
+    tree_utils.assert_almost_equals(expected, actual[0])
 
 
 class UniformBiasedTest(parameterized.TestCase):
@@ -37,7 +39,9 @@ class UniformBiasedTest(parameterized.TestCase):
   )
   def test_uniform(self, payoffs: np.ndarray, expected: strategy.Profile):
     """Tests basic API."""
-    tree_utils.assert_almost_equals(expected, uniform.UniformBiased()(payoffs))
+    actual = uniform.UniformBiased()(payoffs)
+    self.assertLen(actual, 1)
+    tree_utils.assert_almost_equals(expected, actual[0])
 
 
 if __name__ == "__main__":

@@ -59,4 +59,4 @@ class ProjectedReplicatorDynamics:
       if i >= self.num_iterations - average_over_last_n_strategies:
         meta_strategy_window.append(new_strategies)
     average_new_strategies = tree.map_structure(lambda *x: np.mean(x, axis=0), *meta_strategy_window)
-    return dict(enumerate(average_new_strategies))
+    return [dict(enumerate(average_new_strategies))]

@@ -19,7 +19,7 @@ class Uniform:
     """
     del kwargs
     strategies = (np.ones(x, dtype=float) / x for x in payoffs.shape[:-1])
-    return dict(enumerate(strategies))
+    return [dict(enumerate(strategies))]
 
 
 class UniformBiased:
@@ -49,4 +49,4 @@ class UniformBiased:
     """
     del kwargs
     strategies = (UniformBiased.softmax_on_range(x) for x in payoffs.shape[:-1])
-    return dict(enumerate(strategies))
+    return [dict(enumerate(strategies))]

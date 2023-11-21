@@ -21,6 +21,8 @@ class ProjectedReplicatorDynamicsTest(parameterized.TestCase):
         average_over_last_n_strategies=10,
     )
     solution = solver(payoff_matrix)
+    self.assertLen(solution, 1)
+    solution = solution[0]
 
     self.assertLen(solution, 2)
     self.assertLen(solution[0], 2)
@@ -41,6 +43,8 @@ class ProjectedReplicatorDynamicsTest(parameterized.TestCase):
         average_over_last_n_strategies=10,
     )
     solution = solver(payoff_matrix)
+    self.assertLen(solution, 1)
+    solution = solution[0]
 
     self.assertLen(solution, 3)
     self.assertLen(solution[0], 2)
