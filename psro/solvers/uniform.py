@@ -1,3 +1,4 @@
+"""Baseline uniform solvers."""
 from typing import Sequence
 
 import numpy as np
@@ -9,7 +10,7 @@ class Uniform:
   """Computes a uniform distribution over policies."""
 
   def __call__(self, payoffs: np.ndarray, **kwargs) -> Sequence[strategy.Profile]:
-    """Compute PRD for the given payoff matrix.
+    """Compute uniform for the given payoff matrix.
 
     Args:
       payoffs: Payoff matrix [P1, P2, ...., PN, NumPlayers].
@@ -39,7 +40,7 @@ class UniformBiased:
     return x
 
   def __call__(self, payoffs: np.ndarray, **kwargs) -> Sequence[strategy.Profile]:
-    """Compute PRD for the given payoff matrix.
+    """Compute a biased-uniform distribution for the given payoff matrix.
 
     Args:
       payoffs: Payoff matrix [P1, P2, ...., PN, NumPlayers].
