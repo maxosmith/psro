@@ -51,7 +51,7 @@ class PSRO:
       solution_precision: int = 5,
       max_profile_simulator_workers: int = 1,
       max_response_oracle_workers: int = 1,
-      initial_empirical_game: empirical_games.NormalForm | None = None,
+      initial_empirical_game: empirical_games.NormalForm | empirical_games.NormalFormSQL | None = None,
   ):
     """Initializer."""
     self._game_ctor = game_ctor
@@ -63,7 +63,7 @@ class PSRO:
     self._response_oracles = response_oracles
     self._profile_simulator = profile_simulator
     self._game_solver = game_solver
-    self._result_dir = pathlib.Path(result_dir)
+    self._result_dir = pathlib.Path(os.path.abspath(result_dir))
     self._num_samples_per_profile = num_samples_per_profile
     self._solution_precision = solution_precision
     self._max_profile_simulation_workers = max_profile_simulator_workers
@@ -72,7 +72,7 @@ class PSRO:
     if initial_empirical_game:
       self._empirical_game = initial_empirical_game
     else:
-      self._empirical_game = empirical_games.NormalForm(self.num_players, self._result_dir / "empirical_game")
+      self._empirical_game = empirical_games.NormalFormSQL(self.num_players, self._result_dir / "empirical_game.sql")
 
   def run(self, num_epochs: core.Epoch | None = None):
     """Run PSRO.
@@ -84,6 +84,7 @@ class PSRO:
     if num_epochs is None:
       logging.info("No limit of epochs specified, running indefinitely.")
       num_epochs = np.iinfo(np.int32).max
+    self.save_initial_strategies()
 
     for epoch_i in range(1, num_epochs + 1):
       logging.info("Beginning Epoch %d", epoch_i)
@@ -93,6 +94,7 @@ class PSRO:
       self.simulate_profiles()
       solution = self.solve_empirical_game(epoch_dir)
       self.expand_empirical_game(epoch_dir, solution)
+      self._maybe_symlink_policies(epoch_i)
 
     logging.info("Finalizing empirical game.")
     self.simulate_profiles()
@@ -146,7 +148,7 @@ class PSRO:
       solution = solutions[0]
     else:
       solution = solutions
-    solution = self._fix_solution_precision(solution)
+    # solution = self._fix_solution_precision(solution)
 
     logging.info("Solution: %s", solution)
     with open(epoch_dir / "solution.pb", "wb") as file:
@@ -171,7 +173,6 @@ class PSRO:
         solution=solution,
         epoch_dir=epoch_dir,
     )
-
     max_workers = min(self._max_response_oracle_workers, self.num_players)
     context = multiprocessing.get_context("spawn")
     with futures.ProcessPoolExecutor(max_workers=max_workers, mp_context=context) as executor:
@@ -186,6 +187,28 @@ class PSRO:
           print(f"Response oracle died with exception: {e}")
           traceback.print_exc()
           raise RuntimeError("Error encountered when running a response oracle.") from e
+
+  def save_initial_strategies(self):
+    """Save the initial policies to disk."""
+    # Directory to save initial strategies.
+    save_dir = self._result_dir / "initial_strategies/"
+    os.mkdir(save_dir)
+
+    # Directory to accumulate symlinks to all policies.
+    policy_dir = self._result_dir / "policies"
+    os.makedirs(policy_dir)
+
+    for player, strat in self._strategies.items():
+      player_dir = save_dir / f"player_{player}/"
+      os.mkdir(player_dir)
+      os.mkdir(policy_dir / f"player_{player}")
+
+      for policy_i, policy in enumerate(strat.policies):
+        policy_path = player_dir / f"policy_{policy_i}.pb"
+        with open(policy_path, "wb") as file:
+          cloudpickle.dump(policy, file)
+        link_path = policy_dir / f"player_{player}" / f"policy_{policy_i}.pb"
+        os.symlink(policy_path, link_path)
 
   @property
   def empirical_game(self) -> empirical_games.NormalForm:
@@ -206,3 +229,37 @@ class PSRO:
       mixture[highest_support] += rounding_error
       solution[player_id] = mixture
     return solution
+
+  def _maybe_symlink_policies(self, epoch: int):
+    """Maintain symlinks at the run-level directory of all players' policies.
+
+    This softly assumes that response oracles record policies in a standard structure:
+      epoch_i/
+        player_i/
+          policy.pb
+        player_j/
+          policy.pb
+        ...
+      ...
+
+    TODO(max): Don't repeat work across epochs. Currently does this because it
+      allows this to be self-contained.
+    """
+    policy_dir = self._result_dir / "policies"
+
+    for player in range(self.num_players):
+      player_dir = policy_dir / f"player_{player}"
+
+      files = (entry for entry in player_dir.iterdir() if entry.is_file())
+      policy_id = sum(1 for _ in files)
+
+      epoch_dir = self._result_dir / f"epoch_{epoch}"
+      if not os.path.exists(epoch_dir):
+        break
+      # If a policy was saved by the response oracle, establish a symlink.
+      # TODO(maxsmith): Allow multiple policies to be constructed in an epoch.
+      policy_path = epoch_dir / f"player_{player}" / "policy.pb"
+      link_path = player_dir / f"policy_{policy_id}.pb"
+      if os.path.exists(policy_path) and not os.path.exists(link_path):
+        os.symlink(policy_path, link_path)
+      policy_id += 1
