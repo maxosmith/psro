@@ -58,6 +58,42 @@ class UtilsTest(parameterized.TestCase):
         else:
           self.assertAlmostEqual(0, probability)
 
+  def test_aggregate_stochastic_policies(self):
+    """Tests `aggregate_joint_policy`."""
+    game = pyspiel.load_game("kuhn_poker")
+    players = {
+        0: strategy.Strategy(policies=[bots.RandomActionBot(2)], mixture=[1.0]),
+        1: strategy.Strategy(policies=[bots.RandomActionBot(2)], mixture=[1.0]),
+    }
+    agg = utils.aggregate_joint_strategy(game, players)
+
+    tab_policy = agg.to_tabular()
+    dict_policy = tab_policy.to_dict()
+
+    for actions_with_probs in dict_policy.values():
+      for _, prob in actions_with_probs:
+        self.assertAlmostEqual(0.5, prob)
+
+  def test_aggregate_stochastic_policies2(self):
+    """Tests `aggregate_joint_policy`."""
+    game = pyspiel.load_game("kuhn_poker")
+    players = {
+        0: strategy.Strategy(policies=[bots.RandomActionBot(2)], mixture=[1.0]),
+        1: strategy.Strategy(policies=[bots.ConstantActionBot(1)], mixture=[1.0]),
+    }
+    agg = utils.aggregate_joint_strategy(game, players)
+
+    tab_policy = agg.to_tabular()
+    dict_policy = tab_policy.to_dict()
+
+    for state, actions_with_probs in dict_policy.items():
+      if len(state) == 2:  # Player 1.
+        self.assertAlmostEquals(0.0, actions_with_probs[0][1])
+        self.assertAlmostEquals(1.0, actions_with_probs[1][1])
+      else:  # Player 0.
+        self.assertAlmostEquals(0.5, actions_with_probs[0][1])
+        self.assertAlmostEquals(0.5, actions_with_probs[1][1])
+
   @parameterized.parameters(
       {
           "player0_mixture": [0.8, 0.2],

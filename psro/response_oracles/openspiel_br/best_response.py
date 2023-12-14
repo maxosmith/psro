@@ -4,8 +4,10 @@ References:
  - https://github.com/google-deepmind/open_spiel/blob/master/open_spiel/python/algorithms/psro_v2/best_response_oracle.py  # pylint: disable=line-too-long
 """
 import dataclasses
+import os
 from typing import Tuple
 
+import cloudpickle
 import pyspiel
 from marl import individuals, types, worlds
 from open_spiel.python import policy as openspiel_policy
@@ -137,7 +139,15 @@ class BestResponse:
           self.best_response_processors[learner_id],
       )
       best_resp = self.best_responders[learner_id]
-    return (job.learner_id, OpenSpielBestResponseProxy(learner_id, best_resp))
+
+    best_resp = OpenSpielBestResponseProxy(learner_id, best_resp)
+
+    player_dir = job.epoch_dir / f"player_{job.learner_id}"
+    os.makedirs(player_dir, exist_ok=True)
+    with open(player_dir / "policy.pb", "wb") as file:
+      cloudpickle.dump(best_resp, file)
+
+    return (job.learner_id, best_resp)
 
   def _validate_joint_strategy(self, players: strategy.JointStrategy):
     """Validate that the joint strategy is valide for the game."""
