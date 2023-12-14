@@ -24,7 +24,7 @@ class ProjectedReplicatorDynamics:
     use_approx: use the approximate simplex projection.
   """
 
-  num_iterations: int = 10_000
+  num_iterations: int = 100_000
   dt: float = 1e-3
   gamma: float = 1e-6
   average_over_last_n_strategies: None | int = None

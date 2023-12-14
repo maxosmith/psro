@@ -8,12 +8,15 @@ from open_spiel.python.algorithms import regret_matching as os_rm
 
 from psro import strategy
 
+# Start with initial regrets of 1 / denom.
+INITIAL_REGRET_DENOM = 1e6
+
 
 @dataclasses.dataclass
 class RegretMatching:
-  """C"""
+  """Proxy to OpenSpiel's regret matching algorithm."""
 
-  iterations: int = int(1e5)
+  iterations: int = 100_000
   gamma: float = 1e-6
   average_over_last_n_strategies: None | int = None
 
@@ -27,8 +30,6 @@ class RegretMatching:
       Computed solution.
     """
     payoff_tensors = sox.array_utils.unstack(payoffs, axis=-1)
-    # result = os_rm.regret_matching(meta_games, **kwargs)
-    # START//
     number_players = len(payoff_tensors)
     # Number of actions available to each player.
     action_space_shapes = payoff_tensors[0].shape
@@ -36,7 +37,7 @@ class RegretMatching:
     # If no initial starting position is given, start with uniform probabilities.
     new_strategies = [np.ones(action_space_shapes[k]) / action_space_shapes[k] for k in range(number_players)]
 
-    regrets = [np.ones(action_space_shapes[k]) / os_rm.INITIAL_REGRET_DENOM for k in range(number_players)]
+    regrets = [np.ones(action_space_shapes[k]) / INITIAL_REGRET_DENOM for k in range(number_players)]
 
     averager = StrategyAverager(number_players, action_space_shapes, self.average_over_last_n_strategies)
     averager.append(new_strategies)
@@ -44,6 +45,7 @@ class RegretMatching:
     for _ in range(self.iterations):
       new_strategies = os_rm._regret_matching_step(payoff_tensors, new_strategies, regrets, self.gamma)
       averager.append(new_strategies)
+
     result = averager.average_strategies()
 
     return [dict(enumerate(result))]
