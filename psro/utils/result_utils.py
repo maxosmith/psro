@@ -59,6 +59,7 @@ def load_solutions(path: pathlib.Path) -> list[strategy.Profile]:
   Returns:
     List of the solutions computed in the run.
   """
+  path = pathlib.Path(path)
   solutions = []
   for epoch in itertools.count(1):
     epoch_dir = path / f"epoch_{epoch}"
@@ -74,6 +75,18 @@ def load_solutions(path: pathlib.Path) -> list[strategy.Profile]:
   return solutions
 
 
+def load_padded_solutions(path: pathlib.Path) -> list[strategy.Profile]:
+  """Load the solutions from PSRO padded with zeros to the same shape.
+
+  Args:
+    path: Result directory from a run of PSRO.
+
+  Returns:
+    List of the solutions computed in the run.
+  """
+  return pad_solutions(load_game_matrix(path), load_solutions(path))
+
+
 def load_game_matrix(path: pathlib.Path) -> np.ndarray:
   """Load the largest version of the game matrix saved.
 
@@ -83,6 +96,7 @@ def load_game_matrix(path: pathlib.Path) -> np.ndarray:
   Returns:
     Game matrix from the result directory.
   """
+  path = pathlib.Path(path)
 
   def _try_dir(p: pathlib.Path):
     """Try loading a game matrix from a directory."""
