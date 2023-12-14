@@ -19,12 +19,24 @@ class ToGymnasium(gym.Env):
     """Initializer."""
     self._env = env
     self.action_space = spec_to_space(self._env.action_spec())
-    self.observation_space = spec_to_space(self._env.observation_spec())
+
+    observation_spec = self._env.observation_spec()
+    if isinstance(observation_spec, dict) and ("info_state" in observation_spec):
+      # This is a OpenSpiel game, and we need to only return "info_state" for the obseration.
+      self.observation_space = spec_to_space(observation_spec["info_state"])
+    else:
+      self.observation_space = spec_to_space(observation_spec)
 
   def step(self, action: types.Action) -> tuple[types.Observation, SupportsFloat, bool, bool, dict[str, Any]]:
     """Run one timestep of the environment's dynamics using the agent's actions."""
     timestep = self._env.step(action)
-    return timestep.observation, timestep.reward, timestep.last(), False, {}
+    observation = None
+    if isinstance(timestep.observation, dict) and ("info_state" in timestep.observation):
+      observation = timestep.observation["info_state"]
+    else:
+      observation = timestep.observation
+
+    return observation, timestep.reward, timestep.last(), False, {}
 
   def reset(
       self, *, seed: int | None = None, options: dict[str, Any] | None = None
@@ -32,7 +44,10 @@ class ToGymnasium(gym.Env):
     """Resets the enviornment to an initial internal state, returning an initial observation and info."""
     del seed, options
     timestep = self._env.reset()
-    return timestep.observation, {}
+    if isinstance(timestep.observation, dict) and ("info_state" in timestep.observation):
+      return timestep.observation["info_state"], {}
+    else:
+      return timestep.observation, {}
 
 
 class FromGymnasium(worlds.Environment):
@@ -45,9 +60,9 @@ class FromGymnasium(worlds.Environment):
   def step(self, action: types.Action) -> worlds.TimeStep:
     """Updates the environment according to the action and returns a `TimeStep`."""
     observation, reward, terminated, truncated, info = self._env.step(action)
-    del truncated, info
+    del info
     return worlds.TimeStep(
-        step_type=worlds.StepType.LAST if terminated else worlds.StepType.MID,
+        step_type=worlds.StepType.LAST if terminated or truncated else worlds.StepType.MID,
         reward=reward,
         observation=observation,
     )
@@ -107,8 +122,8 @@ def spec_to_space(spec):
 
   elif isinstance(spec, specs.ArraySpec):
     return gym.spaces.Box(
-        np.full(spec.shape, np.iinfo(spec.dtype).min),
-        np.full(spec.shape, np.iinfo(spec.dtype).max),
+        np.full(spec.shape, _np_info(spec.dtype).min),
+        np.full(spec.shape, _np_info(spec.dtype).max),
     )
 
   else:
@@ -138,3 +153,13 @@ def space_to_spec(space):
 
   else:
     raise NotImplementedError(f"Conversion for space type {type(space)} not implemented.")
+
+
+def _np_info(dtype):
+  """Get the info for either integer or floating types."""
+  if np.issubdtype(dtype, np.integer):
+    return np.iinfo(dtype)
+  elif np.issubdtype(dtype, np.floating):
+    return np.finfo(dtype)
+  else:
+    raise ValueError("Data type not supported")

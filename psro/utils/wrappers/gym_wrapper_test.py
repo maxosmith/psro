@@ -13,7 +13,7 @@ class FromGymnasiumTest(parameterized.TestCase):
 
   def test_cartpole(self):
     """Test converting cartpole."""
-    env = gym.make("CartPole-v1")
+    env = gym.make("CartPole-v1", max_episode_steps=3)
     converted = gym_wrapper.FromGymnasium(env)
 
     obs_spec = converted.observation_spec()
@@ -34,13 +34,19 @@ class FromGymnasiumTest(parameterized.TestCase):
     chex.assert_equal_shape([np.asarray(r), np.asarray(timestep.reward)])
     self.assertEqual(worlds.StepType.MID, timestep.step_type)
 
+    o, r, *_ = env.step(0)
+    timestep = converted.step(0)
+    chex.assert_equal_shape([o, timestep.observation])
+    chex.assert_equal_shape([np.asarray(r), np.asarray(timestep.reward)])
+    self.assertEqual(worlds.StepType.LAST, timestep.step_type)
+
 
 class ToGymnasiumTest(parameterized.TestCase):
   """Test suite for `ToGymnasium`."""
 
   def test_cartpole(self):
     """Test converting cartpole."""
-    env = gym_wrapper.FromGymnasium(gym.make("CartPole-v1"))
+    env = gym_wrapper.FromGymnasium(gym.make("CartPole-v1", max_episode_steps=3))
     converted = gym_wrapper.ToGymnasium(env)
 
     np.testing.assert_almost_equal(env.observation_spec().minimum, converted.observation_space.low)
