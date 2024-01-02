@@ -3,16 +3,18 @@ import itertools
 import multiprocessing
 import os
 import pathlib
+import shutil
 import traceback
 from concurrent import futures
-from typing import Sequence
+from typing import Any, Sequence
 
 import cloudpickle
 import numpy as np
 from absl import logging
-from marl import types
+from marl import bots, types
 
 from psro import core, empirical_games, strategy
+from psro.utils import result_utils
 
 
 class PSRO:
@@ -263,3 +265,59 @@ class PSRO:
       if os.path.exists(policy_path) and not os.path.exists(link_path):
         os.symlink(policy_path, link_path)
       policy_id += 1
+
+
+def load_partial_run(
+    game_ctor: core.GameCtor,
+    response_oracles: dict[types.PlayerID, core.ResponseOracle],
+    profile_simulator: core.ProfileSimulator,
+    game_solver: core.GameSolver,
+    *,
+    load_dir: pathlib.Path | str,
+    continue_dir: pathlib.Path | str,
+    **psro_kwargs: dict[str, Any],
+) -> PSRO:
+  """Load a partial run of PSRO to be continued as a new run.
+
+  NOTE: This method forks the entire result directory to prevent contamination.
+
+  TODO(max): Write flags/settings to disk at the start of PSRO run. Then we can
+    directly load them here instead of requesting PSRO parameters and assuming
+    that they are consistent.
+  """
+  load_dir = pathlib.Path(load_dir)
+  continue_dir = pathlib.Path(continue_dir)
+  dummy_strat = strategy.Strategy([bots.RandomActionBot(2)], mixture=[1.0])
+
+  psro = PSRO(
+      game_ctor=game_ctor,
+      # PSRO requires an initial strategy set. We set it for comptability, and then
+      # will overwrite all of the associated internal states and disk artifacts.
+      initial_strategies={player: dummy_strat for player in response_oracles.keys()},
+      response_oracles=response_oracles,
+      profile_simulator=profile_simulator,
+      game_solver=game_solver,
+      result_dir=continue_dir,
+      **psro_kwargs,
+  )
+
+  _copy_directory_contents(load_dir, continue_dir)
+  # pylint: disable=protected-access
+  psro._strategies = result_utils.load_joint_strategy(continue_dir)
+  psro._empirical_game = result_utils.load_empirical_game(continue_dir, len(psro._strategies))
+  # pylint: enable=protected-access
+
+  return psro, result_utils.load_num_epochs(continue_dir)
+
+
+def _copy_directory_contents(src, dst):
+  """Copy a directories contents."""
+  if not os.path.exists(dst):
+    os.makedirs(dst)
+  for item in os.listdir(src):
+    s = os.path.join(src, item)
+    d = os.path.join(dst, item)
+    if os.path.isdir(s):
+      _copy_directory_contents(s, d)
+    else:
+      shutil.copy2(s, d)
